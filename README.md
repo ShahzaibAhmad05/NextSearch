@@ -1,4 +1,4 @@
-# ** NextSearch Search What's Next with NextSearch**
+# NextSearch Search What's Next with NextSearch
 
 An efficient search engine implementation in **C++**, capable of generating a **Lexicon**, **Forward Index**, and **Inverted Index** from a CSV dataset.  
 This project demonstrates core indexing concepts used in modern search engines.
