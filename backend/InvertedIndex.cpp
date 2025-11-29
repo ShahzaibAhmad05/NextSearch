@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+#include <cstdint>
 
 using namespace std;
 using DocID = uint32_t;

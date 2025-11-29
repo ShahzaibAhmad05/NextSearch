@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cctype>
+#include <cstdint>
 
 using namespace std;
 using DocID = uint32_t;
