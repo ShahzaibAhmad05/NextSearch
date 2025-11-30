@@ -50,8 +50,11 @@ NextSearch
 ---
 
 ## **Usage**
+### 1. Get the Dataset from this link: https://drive.google.com/file/d/1H18OZBl-stVZPLrLjePSApjCixUdiEQE/view?usp=sharing
 
-### 1. Compile the Code
+Use `g++` (or any C++ compiler):
+
+### 2. Compile the Code
 
 Use `g++` (or any C++ compiler):
 
