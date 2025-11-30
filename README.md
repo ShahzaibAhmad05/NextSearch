@@ -5,6 +5,20 @@ This project demonstrates core indexing concepts used in modern search engines.
 
 ---
 
+## **Project Structure**
+
+````
+NextSearch
+├─ backend/
+│  ├─ count.py
+│  ├─ ForwardIndex.cpp
+│  ├─ increment.cpp
+│  ├─ InvertedIndex.cpp
+│  └─ lexicon.cpp
+├─ LICENSE
+└─ README.md
+````
+
 ## **Features**
 
 * **Tokenization & Normalization**
