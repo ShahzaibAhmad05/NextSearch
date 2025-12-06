@@ -1,15 +1,17 @@
 """
-A script to slice 60k files from the original dataset of 
+A script to slice specific range of entries from the original dataset of 
 one million files.
 """
 
 import pandas as pd
 
-SOURCE = "metadata.csv"          # original big file
-OUTPUT = "metadata_slice.csv"    # reduced file
-CHUNK = 50_000                   # rows per chunk
-LIMIT = 60_000                   # how many valid rows you want max
-
+SOURCE = "Largedataset.csv"          # original big file
+OUTPUT = "metadata.csv"    # reduced file
+CHUNK = 50                   # rows per chunk
+LIMIT = 100                   # how many valid rows you want max
+"""
+Currently the metadata in Sample File Given is of 100 taken out of latest coord documents csv file.
+"""
 # toggle this depending on what you want
 REQUIRE_URL = False  # True => only rows with abstract AND url
 
