@@ -1,6 +1,7 @@
-# NextSearch Search What's Next with NextSearch
+# NextSearch - A Scalable Search Engine
 
-An efficient search engine implementation in **C++**, capable of generating a **Lexicon**, **Forward Index**, and **Inverted Index** from a CSV dataset.  
+An efficient search engine implementation in **C++**, capable of generating a **Lexicon**, **Forward Index**, and **Inverted Index** from a CSV dataset, along with a Frontend built in React with Typescript.
+
 This project demonstrates core indexing concepts used in modern search engines.
 
 ---
@@ -10,15 +11,43 @@ This project demonstrates core indexing concepts used in modern search engines.
 ````
 NextSearch
 ├─ backend/
-│  ├─ ForwardIndex.cpp
 │  ├─ AddDocument.cpp
+│  ├─ ForwardIndex.cpp
+│  ├─ ImplementBarrels.cpp
 │  ├─ InvertedIndex.cpp
 │  └─ lexicon.cpp
+├─ frontend/
+│  ├─ public/
+│  │  └─ vite.svg
+│  ├─ src/
+│  │  ├─ assets/
+│  │  │  └─ react.svg
+│  │  ├─ components/
+│  │  │  ├─ SearchBar.tsx
+│  │  │  └─ SearchResults.tsx
+│  │  ├─ api.ts
+│  │  ├─ App.css
+│  │  ├─ App.tsx
+│  │  ├─ index.css
+│  │  ├─ main.tsx
+│  │  └─ types.ts
+│  ├─ eslint.config.js
+│  ├─ index.html
+│  ├─ package-lock.json
+│  ├─ package.json
+│  ├─ README.md
+│  ├─ tsconfig.app.json
+│  ├─ tsconfig.json
+│  ├─ tsconfig.node.json
+│  └─ vite.config.ts
 ├─ sampleFiles/
 │  ├─ forward_index.txt
-│  ├─ lexicon.txt
 │  ├─ inverted_index.txt
-│  └─ metadata.csv
+│  ├─ lexicon.txt
+│  ├─ metadata.csv
+│  ├─ metadata_old.csv
+│  ├─ metadata_slice.csv
+│  └─ sliceMetadata.py
 ├─ LICENSE
 └─ README.md
 ````
