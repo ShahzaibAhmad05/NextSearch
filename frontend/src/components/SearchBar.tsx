@@ -10,24 +10,25 @@ type Props = {
   onSubmit: () => void;
 };
 
-export default function SearchBar(props: Props) {
-  const { query, k, loading, onChangeQuery, onChangeK, onSubmit } = props;
-
+export default function SearchBar({ query, k, loading, onChangeQuery, onChangeK, onSubmit }: Props) {
   return (
     <div className="d-flex gap-2 align-items-center flex-wrap">
-      <input
-        className="form-control"
-        value={query}
-        onChange={(e) => onChangeQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSubmit();
-        }}
-        placeholder="Search..."
-        style={{ flex: "1 1 420px" }}
-      />
+      <div className="input-group" style={{ flex: "1 1 420px" }}>
+        <input
+          className="form-control form-control-lg"
+          value={query}
+          onChange={(e) => onChangeQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && query.trim()) {
+              onSubmit();
+            }
+          }}
+          placeholder="Search documents..."
+        />
+      </div>
 
       <div className="d-flex align-items-center gap-2">
-        <span className="text-secondary small">Top K</span>
+        <span className="text-secondary small">Results</span>
         <input
           className="form-control"
           type="number"
@@ -36,16 +37,9 @@ export default function SearchBar(props: Props) {
           value={k}
           onChange={(e) => onChangeK(Number(e.target.value))}
           style={{ width: 110 }}
+          aria-label="Top K"
         />
       </div>
-
-      <button
-        className={`btn ${loading ? "btn-secondary" : "btn-dark"}`}
-        onClick={onSubmit}
-        disabled={loading || query.trim().length === 0}
-      >
-        {loading ? "Searching..." : "Search"}
-      </button>
     </div>
   );
 }

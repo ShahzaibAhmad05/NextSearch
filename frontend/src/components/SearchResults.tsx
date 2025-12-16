@@ -17,7 +17,7 @@ export default function SearchResults({ results }: Props) {
         <div key={r.docId} className="card shadow-sm">
           <div className="card-body">
             <div className="d-flex justify-content-between gap-3">
-              <div className="fw-bold">
+              <div className="fw-semibold">
                 {r.url ? (
                   <a className="text-decoration-none" href={r.url} target="_blank" rel="noreferrer">
                     {r.title || "(untitled)"}
@@ -30,8 +30,7 @@ export default function SearchResults({ results }: Props) {
             </div>
 
             <div className="mt-2 small text-secondary">
-              docId: {r.docId} • segment: <code>{r.segment}</code> • cord_uid:{" "}
-              <code>{r.cord_uid}</code>
+              docId: {r.docId} • segment: <code>{r.segment}</code> • cord_uid: <code>{r.cord_uid}</code>
             </div>
 
             <div className="mt-2 small">
