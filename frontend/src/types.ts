@@ -1,29 +1,19 @@
 // src/types.ts
-export interface SearchResult {
-  cord_uid: string;
-  sha?: string | null;
-  source_x?: string | null;
+export type SearchResult = {
+  docId: number;
+  score: number;
   title: string;
-  doi?: string | null;
-  pmcid?: string | null;
-  pubmed_id?: string | null;
-  license?: string | null;
-  abstract?: string | null;
-  publish_time?: string | null;
-  authors?: string | null;
-  journal?: string | null;
-  mag_id?: string | null;
-  who_covidence_id?: string | null;
-  arxiv_id?: string | null;
-  pdf_json_files?: string | null;
-  pmc_json_files?: string | null;
-  url?: string | null;
-  s2_id?: string | null;
-}
+  segment: string;
+  cord_uid: string;
+  json_relpath: string;
+  url?: string;
+};
 
-export interface SearchResponse {
+export type SearchResponse = {
+  query: string;
+  k?: number;
+  segments?: number;
+  search_time_ms?: number;
+  total_time_ms?: number;
   results: SearchResult[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
+};

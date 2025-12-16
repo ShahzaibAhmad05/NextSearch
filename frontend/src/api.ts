@@ -1,60 +1,41 @@
 // src/api.ts
-import type { SearchResponse, SearchResult } from "./types";
+import type { SearchResponse } from "./types";
 
-const API_BASE_URL = "http://localhost:8000"; // <-- change to your backend
+// Backend defaults to http://127.0.0.1:8080 (see api_server.cpp)
+// You can override with VITE_API_BASE, e.g. http://localhost:8080
+const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8080";
 
-export async function searchNextSearch(
-  query: string,
-  page: number = 1,
-  pageSize: number = 10
-): Promise<SearchResponse> {
-  if (!query.trim()) {
-    return {
-      results: [],
-      total: 0,
-      page,
-      pageSize,
-    };
+export async function search(query: string, k: number): Promise<SearchResponse> {
+  // C++ backend expects: GET /search?q=<query>&k=<k>
+  const url = new URL(`${BASE}/search`);
+  url.searchParams.set("q", query);
+  url.searchParams.set("k", String(k));
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Accept: "application/json" }
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Search failed (${res.status}): ${text}`);
   }
 
-  try {
-    const url = new URL("/api/search", API_BASE_URL);
-    url.searchParams.set("q", query);
-    url.searchParams.set("page", String(page));
-    url.searchParams.set("pageSize", String(pageSize));
+  return (await res.json()) as SearchResponse;
+}
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+export async function addDocument(payload: {
+  cord_root: string;
+  json_relpath: string;
+  cord_uid: string;
+  title: string;
+}): Promise<any> {
+  const res = await fetch(`${BASE}/add_document`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    // Adjust this shape if your backend returns something different
-    const data = (await res.json()) as SearchResponse;
-    return data;
-  } catch (err) {
-    console.error("Search API error, falling back to mock data:", err);
-
-    // Simple mock so UI is usable even without backend
-    const mock: SearchResult[] = [
-      {
-        cord_uid: "mock-1",
-        title: "Sample COVID-19 Article for Development",
-        abstract:
-          "This is a mock abstract to demonstrate how results will look in the NextSearch UI.",
-        authors: "Doe J, Smith A",
-        publish_time: "2020-03-15",
-        journal: "Journal of Mock Results",
-        doi: "10.0000/mock.doi",
-        url: "https://example.org/mock-article",
-        source_x: "CORD-19",
-      },
-    ];
-
-    return {
-      results: mock,
-      total: mock.length,
-      page: 1,
-      pageSize: mock.length,
-    };
-  }
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
 }

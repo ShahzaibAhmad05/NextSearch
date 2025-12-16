@@ -1,47 +1,67 @@
 // src/components/SearchBar.tsx
 import React from "react";
-import type { FormEvent } from "react";
 
-
-interface SearchBarProps {
+type Props = {
   query: string;
-  setQuery: (value: string) => void;
+  k: number;
+  loading: boolean;
+  onChangeQuery: (q: string) => void;
+  onChangeK: (k: number) => void;
   onSubmit: () => void;
-  isLoading?: boolean;
-}
-
-const SearchBar: React.FC<SearchBarProps> = ({
-  query,
-  setQuery,
-  onSubmit,
-  isLoading = false,
-}) => {
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    onSubmit();
-  };
-
-  return (
-    <form className="search-bar" onSubmit={handleSubmit}>
-      <div className="search-input-wrapper">
-        <input
-          className="search-input"
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="type to search..."
-          autoFocus
-        />
-        <button
-          className="search-button"
-          type="submit"
-          disabled={!query.trim() || isLoading}
-        >
-          {isLoading ? "Searching..." : "Search"}
-        </button>
-      </div>
-    </form>
-  );
 };
 
-export default SearchBar;
+export default function SearchBar(props: Props) {
+  const { query, k, loading, onChangeQuery, onChangeK, onSubmit } = props;
+
+  return (
+    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <input
+        value={query}
+        onChange={(e) => onChangeQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSubmit();
+        }}
+        placeholder="Search..."
+        style={{
+          flex: "1 1 420px",
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid #ddd",
+          outline: "none"
+        }}
+      />
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 14, color: "#555" }}>Top K</span>
+        <input
+          type="number"
+          min={1}
+          max={200}
+          value={k}
+          onChange={(e) => onChangeK(Number(e.target.value))}
+          style={{
+            width: 90,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid #ddd"
+          }}
+        />
+      </label>
+
+      <button
+        onClick={onSubmit}
+        disabled={loading || query.trim().length === 0}
+        style={{
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #111",
+          background: loading ? "#eee" : "#111",
+          color: loading ? "#444" : "#fff",
+          cursor: loading ? "not-allowed" : "pointer"
+        }}
+      >
+        {loading ? "Searching..." : "Search"}
+      </button>
+    </div>
+  );
+}

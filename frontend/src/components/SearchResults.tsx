@@ -2,149 +2,52 @@
 import React from "react";
 import type { SearchResult } from "../types";
 
-interface SearchResultsProps {
+type Props = {
   results: SearchResult[];
-  total: number;
-  page: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
-  query: string;
-}
-
-const formatAuthors = (authors?: string | null) => {
-  if (!authors) return "Unknown authors";
-  const parts = authors.split(";").map((a) => a.trim()).filter(Boolean);
-  if (parts.length === 0) return "Unknown authors";
-  if (parts.length === 1) return parts[0];
-  if (parts.length === 2) return `${parts[0]} & ${parts[1]}`;
-  return `${parts[0]} et al.`;
 };
 
-const formatDate = (d?: string | null) => (d ? d : "Unknown date");
-
-const SearchResults: React.FC<SearchResultsProps> = ({
-  results,
-  total,
-  page,
-  pageSize,
-  onPageChange,
-  query,
-}) => {
-  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end = Math.min(page * pageSize, total);
-  const totalPages = pageSize ? Math.ceil(total / pageSize) : 1;
-
-  if (!query.trim()) {
-    return (
-      <div className="results-empty">
-        <p>Type a query above to search.</p>
-      </div>
-    );
-  }
-
-  if (query.trim() && results.length === 0) {
-    return (
-      <div className="results-empty">
-        <p>No results found for “{query}”. Try different keywords.</p>
-      </div>
-    );
+export default function SearchResults({ results }: Props) {
+  if (!results.length) {
+    return <div style={{ marginTop: 18, color: "#666" }}>No results.</div>;
   }
 
   return (
-    <div className="results-container">
-      <div className="results-summary">
-        <span>
-          Showing <strong>{start}</strong>–<strong>{end}</strong> of{" "}
-          <strong>{total}</strong> results for “{query}”
-        </span>
-        {totalPages > 1 && (
-          <span className="results-pages">
-            Page <strong>{page}</strong> of <strong>{totalPages}</strong>
-          </span>
-        )}
-      </div>
-
-      <ul className="results-list">
-        {results.map((res) => (
-          <li key={res.cord_uid} className="result-card">
-            <div className="result-header">
-              {res.url ? (
-                <a
-                  href={res.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="result-title-link"
-                >
-                  {res.title || "Untitled article"}
+    <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
+      {results.map((r) => (
+        <div
+          key={r.docId}
+          style={{
+            border: "1px solid #e5e5e5",
+            borderRadius: 14,
+            padding: 14,
+            background: "white"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>
+              {r.url ? (
+                <a href={r.url} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                  {r.title || "(untitled)"}
                 </a>
               ) : (
-                <h3 className="result-title">
-                  {res.title || "Untitled article"}
-                </h3>
-              )}
-              <div className="result-meta-line">
-                <span>{formatAuthors(res.authors)}</span>
-                <span>•</span>
-                <span>{res.journal || "Unknown journal"}</span>
-                <span>•</span>
-                <span>{formatDate(res.publish_time)}</span>
-              </div>
-            </div>
-
-            {res.abstract && (
-              <p className="result-abstract">
-                {res.abstract.length > 300
-                  ? res.abstract.slice(0, 300) + "..."
-                  : res.abstract}
-              </p>
-            )}
-
-            <div className="result-footer">
-              {res.doi && (
-                <a
-                  href={`https://doi.org/${res.doi}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="result-chip"
-                >
-                  DOI: {res.doi}
-                </a>
-              )}
-              {res.pmcid && (
-                <span className="result-chip">PMCID: {res.pmcid}</span>
-              )}
-              {res.source_x && (
-                <span className="result-chip">Source: {res.source_x}</span>
-              )}
-              {res.license && (
-                <span className="result-chip">License: {res.license}</span>
+                <span>{r.title || "(untitled)"}</span>
               )}
             </div>
-          </li>
-        ))}
-      </ul>
+            <div style={{ fontSize: 12, color: "#666" }}>
+              score: {r.score.toFixed(4)}
+            </div>
+          </div>
 
-      {totalPages > 1 && (
-        <div className="results-pagination">
-          <button
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-          >
-            Previous
-          </button>
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-          >
-            Next
-          </button>
+          <div style={{ marginTop: 6, fontSize: 13, color: "#555" }}>
+            docId: {r.docId} • segment: <code>{r.segment}</code> • cord_uid:{" "}
+            <code>{r.cord_uid}</code>
+          </div>
+
+          <div style={{ marginTop: 6, fontSize: 13, color: "#111" }}>
+            json_relpath: <code>{r.json_relpath}</code>
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
-};
-
-export default SearchResults;
+}
