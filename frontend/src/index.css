@@ -20,6 +20,29 @@ code {
   box-shadow: 0 0 0 0.1rem rgba(17, 97, 207, 0.886); /* thinner focus ring */
 }
 
+.page-link {
+  color: #000000;
+}
+
+.page-item.active .page-link {
+  background-color: #041021;
+  border-color: #000000;
+}
+
+.page-link:focus {
+  box-shadow: 0 0 0 0.1rem rgba(0, 0, 0, 0.25);
+}
+
+.page-item:not(.active) .page-link:hover {
+  color: black;
+  background-color: #e9ecefba;
+  border-color: #dee2e6;
+}
+
+.page-item:not(.active) .page-link {
+  background-color: transparent;
+}
+
 /* -----------------------------
    Micro-interactions / motion
    (Bootstrap-friendly)

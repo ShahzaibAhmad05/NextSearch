@@ -21,15 +21,14 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
     const el = topRef.current;
     if (!el) return;
 
-    // Measure your fixed navbar height
     const fixedNav = document.querySelector(".navbar.fixed-top") as HTMLElement | null;
     const fixedNavH = fixedNav?.getBoundingClientRect().height ?? 0;
 
-    // Measure your sticky search block height (add this class in App.tsx: "search-sticky")
+    // Add this class to your sticky wrapper in App.tsx: "search-sticky"
     const stickySearch = document.querySelector(".search-sticky") as HTMLElement | null;
     const stickySearchH = stickySearch?.getBoundingClientRect().height ?? 0;
 
-    const headerOffset = 5*(fixedNavH) + stickySearchH; // small gap
+    const headerOffset = 5*(fixedNavH) + stickySearchH + 12; // small breathing room
     const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
 
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
@@ -49,6 +48,8 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
     () => Array.from({ length: totalPages }, (_, i) => i + 1),
     [totalPages]
   );
+
+  const goTo = (p: number) => setPage(Math.min(Math.max(1, p), totalPages));
 
   if (!results.length) {
     return <div className="mt-3 text-secondary">No results.</div>;
@@ -118,52 +119,97 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
         ))}
       </div>
 
+      {/* Pagination (improved styling) */}
       {totalPages > 1 && (
-        <nav className="mt-4" aria-label="Search results pages">
-          <ul className="pagination justify-content-center flex-wrap mb-0">
-            <li className={`page-item ${safePage === 1 ? "disabled" : ""}`}>
-              <button
-                className="page-link"
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                aria-label="Previous page"
-              >
-                ‹
-              </button>
-            </li>
+        <div className="mt-4">
+              <div className="d-flex flex-column align-items-center gap-2">
+                <nav aria-label="Search results pages" className="w-100">
+                  <ul
+                    className="pagination justify-content-center flex-wrap mb-0"
+                    style={{ gap: 6 }}
+                  >
+                    {/* First */}
+                    <li className={`page-item ${safePage === 1 ? "disabled" : ""}`}>
+                      <button
+                        className="page-link rounded-pill border-0"
+                        type="button"
+                        onClick={() => goTo(1)}
+                        aria-label="First page"
+                      >
+                        «
+                      </button>
+                    </li>
 
-            {pageItems.map((it) => (
-              <li
-                key={`page-${it}`}
-                className={`page-item ${it === safePage ? "active" : ""}`}
-              >
-                <button
-                  className="page-link"
-                  type="button"
-                  onClick={() => setPage(it)}
-                  aria-current={it === safePage ? "page" : undefined}
-                >
-                  {it}
-                </button>
-              </li>
-            ))}
+                    {/* Prev */}
+                    <li className={`page-item ${safePage === 1 ? "disabled" : ""}`}>
+                      <button
+                        className="page-link rounded-pill border-0"
+                        type="button"
+                        onClick={() => goTo(safePage - 1)}
+                        aria-label="Previous page"
+                      >
+                        ‹
+                      </button>
+                    </li>
 
-            <li className={`page-item ${safePage === totalPages ? "disabled" : ""}`}>
-              <button
-                className="page-link"
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                aria-label="Next page"
-              >
-                ›
-              </button>
-            </li>
-          </ul>
+                    {/* Pages */}
+                    {pageItems.map((it) => (
+                      <li
+                        key={`page-${it}`}
+                        className={`page-item ${it === safePage ? "active" : ""}`}
+                      >
+                        <button
+                          className="page-link rounded-pill border-0"
+                          type="button"
+                          onClick={() => goTo(it)}
+                          aria-current={it === safePage ? "page" : undefined}
+                          style={{
+                            minWidth: 40,
+                            textAlign: "center",
+                            border: it === safePage ? "none" : undefined,
+                          }}
+                        >
+                          {it}
+                        </button>
+                      </li>
+                    ))}
 
-          <div className="text-center small text-secondary mt-2">
-            Page {safePage} of {totalPages}
-          </div>
-        </nav>
+                    {/* Next */}
+                    <li
+                      className={`page-item ${safePage === totalPages ? "disabled" : ""}`}
+                    >
+                      <button
+                        className="page-link rounded-pill border-0"
+                        type="button"
+                        onClick={() => goTo(safePage + 1)}
+                        aria-label="Next page"
+                      >
+                        ›
+                      </button>
+                    </li>
+
+                    {/* Last */}
+                    <li
+                      className={`page-item ${safePage === totalPages ? "disabled" : ""}`}
+                    >
+                      <button
+                        className="page-link rounded-pill border-0"
+                        type="button"
+                        onClick={() => goTo(totalPages)}
+                        aria-label="Last page"
+                      >
+                        »
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+
+                <div className="small text-secondary">
+                  Page <span className="fw-semibold">{safePage}</span> of{" "}
+                  <span className="fw-semibold">{totalPages}</span>
+                </div>
+              </div>
+        </div>
       )}
 
       <br />
