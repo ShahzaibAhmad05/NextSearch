@@ -15,8 +15,6 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
   const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
 
-  // When changing pages, scroll to the top of results,
-  // but keep fixed/sticky header visible (do not hide it).
   useEffect(() => {
     const el = topRef.current;
     if (!el) return;
@@ -24,17 +22,15 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
     const fixedNav = document.querySelector(".navbar.fixed-top") as HTMLElement | null;
     const fixedNavH = fixedNav?.getBoundingClientRect().height ?? 0;
 
-    // Add this class to your sticky wrapper in App.tsx: "search-sticky"
     const stickySearch = document.querySelector(".search-sticky") as HTMLElement | null;
     const stickySearchH = stickySearch?.getBoundingClientRect().height ?? 0;
 
-    const headerOffset = 5 * fixedNavH + stickySearchH + 12; // small breathing room
+    const headerOffset = 5 * fixedNavH + stickySearchH + 12;
     const y = el.getBoundingClientRect().top + window.scrollY - headerOffset;
 
     window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
   }, [safePage]);
 
-  // Reset to first page whenever the result set changes (e.g., new search or re-sort).
   useEffect(() => {
     setPage(1);
   }, [results]);
@@ -57,12 +53,12 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
 
   return (
     <div className="mt-3">
-      {/* Anchor: we scroll to here */}
       <div ref={topRef} />
 
       <div className="d-grid gap-3">
         {pageResults.map((r, idx) => {
           const domain = r.url ? safeHostname(r.url) : null;
+          const favicon = r.url ? faviconUrl(r.url) : null;
 
           return (
             <div
@@ -71,9 +67,21 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
               style={{ animationDelay: `${idx * 30}ms` }}
             >
               <div className="card-body">
-                <div className="d-flex align-items-start justify-content-between gap-3">
+                <div className="d-flex align-items-start gap-3">
+                  {favicon && (
+                    <img
+                      src={favicon}
+                      alt=""
+                      width={40}
+                      height={40}
+                      style={{ borderRadius: 6, flexShrink: 0, marginTop: 2 }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
+
                   <div className="flex-grow-1">
-                    {/* 1) Title */}
                     <div className="fw-semibold fs-6 line-clamp-2">
                       {r.url ? (
                         <a
@@ -89,12 +97,10 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
                       )}
                     </div>
 
-                    {/* 3) Author, publish date */}
                     <div className="small text-secondary mt-1">
                       {formatByline(r)}
                     </div>
 
-                    {/* View at {domain} */}
                     {r.url && domain && (
                       <div className="mt-2">
                         <a
@@ -115,7 +121,6 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
         })}
       </div>
 
-      {/* Pagination (improved styling) */}
       {totalPages > 1 && (
         <div className="mt-4">
           <div className="d-flex flex-column align-items-center gap-2">
@@ -129,7 +134,6 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
                     className="page-link rounded-pill border-0"
                     type="button"
                     onClick={() => goTo(1)}
-                    aria-label="First page"
                   >
                     «
                   </button>
@@ -140,7 +144,6 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
                     className="page-link rounded-pill border-0"
                     type="button"
                     onClick={() => goTo(safePage - 1)}
-                    aria-label="Previous page"
                   >
                     ‹
                   </button>
@@ -155,39 +158,28 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
                       className="page-link rounded-pill border-0"
                       type="button"
                       onClick={() => goTo(it)}
-                      aria-current={it === safePage ? "page" : undefined}
-                      style={{
-                        minWidth: 40,
-                        textAlign: "center",
-                        border: it === safePage ? "none" : undefined,
-                      }}
+                      style={{ minWidth: 40 }}
                     >
                       {it}
                     </button>
                   </li>
                 ))}
 
-                <li
-                  className={`page-item ${safePage === totalPages ? "disabled" : ""}`}
-                >
+                <li className={`page-item ${safePage === totalPages ? "disabled" : ""}`}>
                   <button
                     className="page-link rounded-pill border-0"
                     type="button"
                     onClick={() => goTo(safePage + 1)}
-                    aria-label="Next page"
                   >
                     ›
                   </button>
                 </li>
 
-                <li
-                  className={`page-item ${safePage === totalPages ? "disabled" : ""}`}
-                >
+                <li className={`page-item ${safePage === totalPages ? "disabled" : ""}`}>
                   <button
                     className="page-link rounded-pill border-0"
                     type="button"
                     onClick={() => goTo(totalPages)}
-                    aria-label="Last page"
                   >
                     »
                   </button>
@@ -208,10 +200,6 @@ export default function SearchResults({ results, pageSize = 10 }: Props) {
   );
 }
 
-/**
- * Formats "author name, publish date".
- * Supports either `author` or `authors`.
- */
 function formatByline(r: SearchResult) {
   const anyR = r as unknown as {
     author?: unknown;
@@ -229,10 +217,10 @@ function formatByline(r: SearchResult) {
   const date =
     dateRaw != null && String(dateRaw).trim()
       ? String(dateRaw).trim()
-      : "—";
+      : "";
 
-    const yearMatch = date.match(/\b(19\d{2}|20\d{2}|21\d{2})\b/);
-    return yearMatch ? `${author} (${yearMatch[1]})` : author;
+  const yearMatch = date.match(/\b(19\d{2}|20\d{2}|21\d{2})\b/);
+  return yearMatch ? `${author} (${yearMatch[1]})` : author;
 }
 
 function safeHostname(url?: string) {
@@ -241,5 +229,15 @@ function safeHostname(url?: string) {
     return new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return url;
+  }
+}
+
+function faviconUrl(url?: string) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+  } catch {
+    return null;
   }
 }
