@@ -231,7 +231,8 @@ function formatByline(r: SearchResult) {
       ? String(dateRaw).trim()
       : "—";
 
-  return `${author}, ${date}`;
+    const yearMatch = date.match(/\b(19\d{2}|20\d{2}|21\d{2})\b/);
+    return yearMatch ? `${author} (${yearMatch[1]})` : author;
 }
 
 function safeHostname(url?: string) {
