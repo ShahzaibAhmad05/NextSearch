@@ -40,7 +40,7 @@ export default function SearchBar({
           <input
             className="form-control form-control-lg"
             style={{
-              padding: "0.9rem 1.3rem 0.9rem 3.2rem", 
+              padding: "0.7rem 1.3rem 0.7rem 3.2rem", 
               borderRadius: "20px",
             }}
             value={query}
