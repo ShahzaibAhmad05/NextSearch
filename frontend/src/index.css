@@ -191,3 +191,82 @@ code {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+
+/* =========================
+   Add Document Modal (custom, avoids Bootstrap class name collisions)
+   ========================= */
+
+.adddoc-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1055; /* higher than navbar; aligns with Bootstrap modal stacking */
+  padding: 12px;
+}
+
+.adddoc-modal {
+  width: min(780px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+
+  background: #fff;
+  color: #111;
+
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+
+  padding: 14px;
+}
+
+.adddoc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.adddoc-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.adddoc-pre {
+  background: #f7f7f7;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: 12px;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
+.adddoc-filelabel {
+  font-size: 12px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.adddoc-alert {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.adddoc-alert-error {
+  background: #ffe8e8;
+  color: #7a0b0b;
+  border-color: rgba(122, 11, 11, 0.25);
+}
+
+.adddoc-alert-ok {
+  background: #e9fff0;
+  color: #0b5a24;
+  border-color: rgba(11, 90, 36, 0.25);
+}

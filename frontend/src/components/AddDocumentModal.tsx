@@ -1,6 +1,6 @@
 // src/components/AddDocumentModal.tsx
-import React, { useState } from "react";
-import { addDocument as apiAddDocument } from "../api";
+import React, { useMemo, useState } from "react";
+import { addCordSlice as apiAddCordSlice } from "../api";
 
 type Props = {
   show: boolean;
@@ -8,30 +8,44 @@ type Props = {
 };
 
 export default function AddDocumentModal({ show, onClose }: Props) {
-  const [cord_root, setCordRoot] = useState("");
-  const [json_relpath, setJsonRelpath] = useState("");
-  const [cord_uid, setCordUid] = useState("");
-  const [title, setTitle] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
-  if (!show) return null;
+  const fileLabel = useMemo(() => {
+    if (!file) return "No file chosen";
+    return `${file.name} (${Math.round(file.size / 1024)} KB)`;
+  }, [file]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
     setOk(null);
 
-    if (!cord_root || !json_relpath || !cord_uid || !title) {
-      setErr("All fields are required.");
+    if (!file) {
+      setErr("Please choose a .zip file (CORD-19 cord_slice).");
+      return;
+    }
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      setErr("File must be a .zip.");
       return;
     }
 
     setLoading(true);
     try {
-      const out = await apiAddDocument({ cord_root, json_relpath, cord_uid, title });
-      setOk(`Added: ${out.segment} (reloaded=${out.reloaded}) time=${out.total_time_ms?.toFixed?.(2)}ms`);
+      const out = await apiAddCordSlice(file);
+      const ms =
+        out?.total_time_ms != null && typeof out.total_time_ms === "number"
+          ? out.total_time_ms.toFixed(2)
+          : String(out?.total_time_ms ?? "?");
+
+      setOk(
+        `Indexed ${out?.docs_indexed ?? "?"} docs into ${out?.segment ?? "?"} (reloaded=${
+          out?.reloaded ?? "?"
+        }) in ${ms}ms`
+      );
+      setFile(null);
     } catch (e: any) {
       setErr(e?.message ?? String(e));
     } finally {
@@ -39,64 +53,63 @@ export default function AddDocumentModal({ show, onClose }: Props) {
     }
   }
 
+  if (!show) return null;
+
+  // IMPORTANT:
+  // This project uses Bootstrap. Bootstrap defines `.modal` and `.modal-backdrop`
+  // with JS-driven behavior (e.g., `.modal { display:none; }` unless `.show`).
+  // Using those names causes "black screen / invisible popup".
+  // So we use adddoc-* class names to avoid collisions.
   return (
-    <>
-      {/* Backdrop */}
-      <div className="modal-backdrop fade show" />
-
-      {/* Modal */}
-      <div className="modal fade show" style={{ display: "block" }} role="dialog" aria-modal="true">
-        <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h5 className="modal-title">Add Document</h5>
-              <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
-            </div>
-
-            <form onSubmit={onSubmit}>
-              <div className="modal-body">
-                <div className="row g-3">
-                  <div className="col-12">
-                    <label className="form-label">CORD_ROOT (absolute path on server)</label>
-                    <input className="form-control" value={cord_root} onChange={(e) => setCordRoot(e.target.value)} />
-                  </div>
-
-                  <div className="col-12">
-                    <label className="form-label">JSON_REL_PATH (relative path)</label>
-                    <input className="form-control" value={json_relpath} onChange={(e) => setJsonRelpath(e.target.value)} />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label">CORD_UID</label>
-                    <input className="form-control" value={cord_uid} onChange={(e) => setCordUid(e.target.value)} />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label">TITLE</label>
-                    <input className="form-control" value={title} onChange={(e) => setTitle(e.target.value)} />
-                  </div>
-                </div>
-
-                {err ? <div className="alert alert-danger mt-3 mb-0">{err}</div> : null}
-                {ok ? <div className="alert alert-success mt-3 mb-0">{ok}</div> : null}
-
-                <div className="text-secondary small mt-3">
-                  Backend must be running (example): <code>./api_server &lt;INDEX_DIR&gt; 8080</code>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-outline-secondary" onClick={onClose} disabled={loading}>
-                  Close
-                </button>
-                <button type="submit" className="btn btn-dark" disabled={loading}>
-                  {loading ? "Adding..." : "Add"}
-                </button>
-              </div>
-            </form>
-          </div>
+    <div className="adddoc-backdrop" role="dialog" aria-modal="true" aria-label="Add CORD Slice">
+      <div className="adddoc-modal">
+        <div className="adddoc-header">
+          <h2 className="m-0 fs-5">Add CORD Slice</h2>
+          <button className="btn btn-sm btn-outline-dark" type="button" onClick={onClose} disabled={loading}>
+            ✕
+          </button>
         </div>
+
+        <form onSubmit={onSubmit}>
+          <p className="mb-2">
+            Upload a <b>CORD-19 slice zip</b> with this structure:
+          </p>
+          <pre className="adddoc-pre mb-3">
+{`cord19_sliced
+├─ document_parses/
+│  ├─ pdf_json/
+│  └─ pmc_json/
+├─ COVID.DATA.LIC.AGMT.pdf
+├─ json_schema.txt
+├─ metadata.csv
+└─ metadata.readme`}
+          </pre>
+
+          <label className="form-label fw-semibold">Zip file</label>
+          <div className="d-flex gap-2 align-items-center">
+            <input
+              type="file"
+              className="form-control"
+              accept=".zip,application/zip"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              disabled={loading}
+            />
+            <span className="adddoc-filelabel">{fileLabel}</span>
+          </div>
+
+          {err && <div className="adddoc-alert adddoc-alert-error">{err}</div>}
+          {ok && <div className="adddoc-alert adddoc-alert-ok">{ok}</div>}
+
+          <div className="adddoc-footer">
+            <button className="btn btn-outline-dark" type="button" onClick={onClose} disabled={loading}>
+              Close
+            </button>
+            <button className="btn btn-dark" type="submit" disabled={loading || !file}>
+              {loading ? "Indexing..." : "Upload & Index"}
+            </button>
+          </div>
+        </form>
       </div>
-    </>
+    </div>
   );
 }

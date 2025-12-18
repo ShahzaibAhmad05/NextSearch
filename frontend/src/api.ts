@@ -1,13 +1,30 @@
-// src/api.ts
 import type { SearchResponse, SuggestResponse } from "./types";
 
-// Backend defaults to http://127.0.0.1:8080 (see api_server.cpp)
-// You can override with VITE_API_BASE, e.g. http://localhost:8080
-const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://localhost:8080";
+/**
+ * Use same-origin API path in dev via Vite proxy:
+ *   /api/search, /api/add_document
+ *
+ * This avoids CORS & mixed-content issues entirely.
+ */
+const BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
+
+function isFetchNetworkError(err: unknown): boolean {
+  return err instanceof TypeError && /failed to fetch/i.test(err.message);
+}
+
+async function safeJson(res: Response): Promise<any> {
+  const ct = res.headers.get("content-type") ?? "";
+  if (ct.includes("application/json")) return res.json();
+  const txt = await res.text().catch(() => "");
+  try {
+    return JSON.parse(txt);
+  } catch {
+    return txt;
+  }
+}
 
 export async function search(query: string, k: number): Promise<SearchResponse> {
-  // C++ backend expects: GET /search?q=<query>&k=<k>
-  const url = new URL(`${BASE}/search`);
+  const url = new URL(`${BASE}/search`, window.location.origin);
   url.searchParams.set("q", query);
   url.searchParams.set("k", String(k));
 
@@ -24,9 +41,12 @@ export async function search(query: string, k: number): Promise<SearchResponse> 
   return (await res.json()) as SearchResponse;
 }
 
-export async function suggest(query: string, k: number, signal?: AbortSignal): Promise<SuggestResponse> {
-  // C++ backend expects: GET /suggest?q=<query>&k=<k>
-  const url = new URL(`${BASE}/suggest`);
+export async function suggest(
+  query: string,
+  k: number,
+  signal?: AbortSignal
+): Promise<SuggestResponse> {
+  const url = new URL(`${BASE}/suggest`, window.location.origin);
   url.searchParams.set("q", query);
   url.searchParams.set("k", String(k));
 
@@ -44,18 +64,37 @@ export async function suggest(query: string, k: number, signal?: AbortSignal): P
   return (await res.json()) as SuggestResponse;
 }
 
-export async function addDocument(payload: {
-  cord_root: string;
-  json_relpath: string;
-  cord_uid: string;
-  title: string;
-}): Promise<any> {
-  const res = await fetch(`${BASE}/add_document`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(payload),
-  });
+export async function addCordSlice(cordSliceZip: File, signal?: AbortSignal): Promise<any> {
+  const fd = new FormData();
+  fd.append("cord_slice", cordSliceZip, cordSliceZip.name);
 
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  try {
+    const res = await fetch(new URL(`${BASE}/add_document`, window.location.origin).toString(), {
+      method: "POST",
+      headers: { Accept: "application/json" },
+      body: fd,
+      signal,
+    });
+
+    if (!res.ok) {
+      const payload = await safeJson(res);
+      const msg =
+        typeof payload === "string"
+          ? payload
+          : payload?.error
+          ? `${payload.error}${payload.details ? `: ${payload.details}` : ""}`
+          : JSON.stringify(payload);
+      throw new Error(`Add document failed (${res.status}): ${msg}`);
+    }
+
+    return await res.json();
+  } catch (err) {
+    if (isFetchNetworkError(err)) {
+      throw new Error(
+        "Failed to fetch /add_document. With /api proxy, this usually means the Vite proxy couldn't reach the backend.\n" +
+          "Check backend is running on 127.0.0.1:8080 and that /health works."
+      );
+    }
+    throw err;
+  }
 }
