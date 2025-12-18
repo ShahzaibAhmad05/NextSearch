@@ -8,6 +8,7 @@
 
 #include "api_autocomplete.hpp"
 #include "api_types.hpp"
+#include "semantic_embedding.hpp"
 
 namespace cord19 {
 
@@ -20,6 +21,10 @@ struct Engine {
 
     // Autocomplete index built from the loaded lexicon.
     AutocompleteIndex ac;
+
+    // Optional semantic expansion index (classic word embeddings).
+    // If no embeddings are loaded, search falls back to keyword BM25.
+    SemanticIndex sem;
 
     std::mutex mtx;
 

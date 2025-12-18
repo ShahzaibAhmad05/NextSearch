@@ -1,9 +1,11 @@
 #include "api_engine.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <cmath>
 #include <iostream>
 #include <queue>
+#include <unordered_set>
 
 #include "api_metadata.hpp"
 #include "api_segment.hpp"
@@ -72,6 +74,45 @@ bool Engine::reload() {
     uid_to_meta.clear();
     load_metadata_uid_meta(index_dir / "metadata.csv", uid_to_meta);
 
+    // Optional semantic embeddings (Word2Vec/GloVe/FastText exported text).
+    // We load vectors ONLY for terms present in our lexicon to keep memory low.
+    sem = SemanticIndex();
+    {
+        std::unordered_set<std::string> needed_terms;
+        needed_terms.reserve(250000);
+        for (const auto& seg : segments) {
+            for (const auto& kv : seg.lex) needed_terms.insert(kv.first);
+        }
+
+        fs::path emb_path;
+        if (const char* p = std::getenv("EMBEDDINGS_PATH")) {
+            emb_path = fs::path(p);
+        } else {
+            // Try a few conventional filenames.
+            const fs::path candidates[] = {
+                index_dir / "embeddings.vec",
+                index_dir / "embeddings.txt",
+                index_dir / "glove.txt",
+                index_dir / "vectors.txt"
+            };
+            for (const auto& c : candidates) {
+                if (fs::exists(c)) { emb_path = c; break; }
+            }
+        }
+
+        if (!emb_path.empty() && fs::exists(emb_path)) {
+            bool ok = sem.load_from_text(emb_path, needed_terms);
+            if (ok) {
+                std::cerr << "[reload] semantic embeddings loaded: "
+                          << sem.terms.size() << " terms, dim=" << sem.dim
+                          << " from " << emb_path.string() << "\n";
+            } else {
+                std::cerr << "[reload] embeddings file found but no usable vectors loaded: "
+                          << emb_path.string() << " (semantic search disabled)\n";
+            }
+        }
+    }
+
     return true;
 }
 
@@ -99,11 +140,14 @@ json Engine::search(const std::string& query, int k) {
     const int K = std::max(1, std::min(k, 100)); // cap to prevent abuse
 
     auto qtoks = tokenize(query);
-    std::vector<std::string> terms;
+
+    // Base keyword terms (stopwords removed)
+    std::vector<std::string> base_terms;
+    base_terms.reserve(qtoks.size());
     for (auto& t : qtoks) {
         if (t.size() < 2) continue;
         if (is_stopword(t)) continue;
-        terms.push_back(t);
+        base_terms.push_back(t);
     }
 
     json out;
@@ -112,7 +156,24 @@ json Engine::search(const std::string& query, int k) {
     out["segments"] = (int)segments.size();
     out["results"] = json::array();
 
-    if (terms.empty() || segments.empty()) return out;
+    if (base_terms.empty() || segments.empty()) return out;
+
+    // Semantic expansion (synonyms / conceptually similar terms) using word embeddings.
+    // Not transformer-based; logic is cosine similarity + weighted BM25.
+    std::vector<std::pair<std::string, float>> qterms_w;
+    if (sem.enabled) {
+        qterms_w = sem.expand(base_terms,
+                              /*per_term*/ 3,
+                              /*global_topk*/ 5,
+                              /*min_sim*/ 0.55f,
+                              /*alpha*/ 0.6f,
+                              /*max_total_terms*/ 40);
+    } else {
+        qterms_w.reserve(base_terms.size());
+        for (const auto& t : base_terms) qterms_w.push_back({t, 1.0f});
+    }
+
+    if (qterms_w.empty()) return out;
 
     struct Hit {
         float s;
@@ -128,19 +189,21 @@ json Engine::search(const std::string& query, int k) {
         std::unordered_map<uint32_t, float> score;
         score.reserve(20000);
 
-        for (auto& term : terms) {
+        for (const auto& tw : qterms_w) {
+            const std::string& term = tw.first;
+            const float qweight = tw.second;
+
             auto it = seg.lex.find(term);
             if (it == seg.lex.end()) continue;
 
             const LexEntry& e = it->second;
+            if (e.df == 0) continue;
+
             float idf = bm25_idf(seg.N, e.df);
 
             std::ifstream* invp = nullptr;
-            if (seg.use_barrels) {
-                invp = &seg.inv_barrels[e.barrelId];
-            } else {
-                invp = &seg.inv;
-            }
+            if (seg.use_barrels) invp = &seg.inv_barrels[e.barrelId];
+            else invp = &seg.inv;
 
             invp->clear();
             invp->seekg((std::streamoff)e.offset, std::ios::beg);
@@ -152,14 +215,13 @@ json Engine::search(const std::string& query, int k) {
                 float dl = (float)seg.docs[docId].doc_len;
                 float denom = (float)tf + k1 * (1.0f - b + b * (dl / seg.avgdl));
                 float s = idf * ((float)tf * (k1 + 1.0f)) / denom;
-                score[docId] += s;
+                score[docId] += qweight * s;
             }
         }
 
         for (auto& kv : score) {
             Hit h{kv.second, segId, kv.first};
-            if ((int)pq.size() < K)
-                pq.push(h);
+            if ((int)pq.size() < K) pq.push(h);
             else if (h.s > pq.top().s) {
                 pq.pop();
                 pq.push(h);
@@ -175,7 +237,7 @@ json Engine::search(const std::string& query, int k) {
         pq.pop();
     }
     std::reverse(hits.begin(), hits.end());
-    out["found"] = total_found; // total matches across all segments
+    out["found"] = total_found;
 
     for (auto& h : hits) {
         auto& d = segments[h.segId].docs[h.docId];
@@ -189,20 +251,13 @@ json Engine::search(const std::string& query, int k) {
 
         auto it = uid_to_meta.find(d.cord_uid);
         if (it != uid_to_meta.end()) {
-            // metadata.csv sometimes has multiple URLs separated by ';'
             std::string url = it->second.url;
             auto semi = url.find(';');
             if (semi != std::string::npos) url = url.substr(0, semi);
             if (!url.empty()) r["url"] = url;
 
-            if (!it->second.publish_time.empty()) {
-                r["publish_time"] = it->second.publish_time;
-            }
-
-            // Return ONLY first author in "Surname et al." form
-            if (!it->second.author.empty()) {
-                r["author"] = it->second.author;
-            }
+            if (!it->second.publish_time.empty()) r["publish_time"] = it->second.publish_time;
+            if (!it->second.author.empty()) r["author"] = it->second.author;
         }
 
         out["results"].push_back(r);
