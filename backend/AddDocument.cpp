@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     fs::create_directories(segments_dir);
 
     auto segs = load_manifest(manifest);
-    uint32_t new_id = (uint32_t)segs.size() + 1;
+    uint32_t new_id = (uint32_t)segs.size() + 2;
     std::string new_seg = seg_name(new_id);
     fs::path segdir = segments_dir / new_seg;
     fs::create_directories(segdir);
