@@ -24,6 +24,10 @@ export default function SearchBar({
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState<number>(-1);
 
+  // NEW: gate suggestions by whether input is active/focused
+  const [isActive, setIsActive] = useState(false);
+  const isActiveRef = useRef(false);
+
   const abortRef = useRef<AbortController | null>(null);
   const blurTimerRef = useRef<number | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -49,7 +53,9 @@ export default function SearchBar({
         const res = await apiSuggest(query, 5, controller.signal);
         const s = Array.isArray(res.suggestions) ? res.suggestions.slice(0, 5) : [];
         setSuggestions(s);
-        setOpen(s.length > 0);
+
+        // IMPORTANT: only open if input is active (focused)
+        setOpen(isActiveRef.current && s.length > 0);
         setActiveIdx(-1);
       } catch (e: any) {
         // Ignore aborts; suppress other errors quietly (no UI changes requested)
@@ -71,6 +77,10 @@ export default function SearchBar({
   }, []);
 
   function pickSuggestion(value: string) {
+    // disable suggestions until re-focus
+    setIsActive(false);
+    isActiveRef.current = false;
+
     onChangeQuery(value);
     setOpen(false);
     setActiveIdx(-1);
@@ -107,9 +117,15 @@ export default function SearchBar({
             value={query}
             onChange={(e) => onChangeQuery(e.target.value)}
             onFocus={() => {
+              setIsActive(true);
+              isActiveRef.current = true;
               if (suggestions.length > 0) setOpen(true);
             }}
             onBlur={() => {
+              // mark inactive immediately so async suggestions can't reopen after blur/enter
+              setIsActive(false);
+              isActiveRef.current = false;
+
               // Delay closing so click events on suggestions can fire.
               if (blurTimerRef.current != null) window.clearTimeout(blurTimerRef.current);
               blurTimerRef.current = window.setTimeout(() => setOpen(false), 120);
@@ -118,6 +134,7 @@ export default function SearchBar({
               if (e.key === "ArrowDown") {
                 if (suggestions.length === 0) return;
                 e.preventDefault();
+                if (!isActiveRef.current) return;
                 setOpen(true);
                 setActiveIdx((prev) => {
                   const next = prev + 1;
@@ -129,6 +146,7 @@ export default function SearchBar({
               if (e.key === "ArrowUp") {
                 if (suggestions.length === 0) return;
                 e.preventDefault();
+                if (!isActiveRef.current) return;
                 setOpen(true);
                 setActiveIdx((prev) => {
                   const next = prev - 1;
@@ -149,15 +167,20 @@ export default function SearchBar({
               if (e.key === "Enter") {
                 e.preventDefault();
 
-                // Close suggestions + remove focus so dropdown doesn't stay open
+                // Disable suggestions until refocus + close dropdown immediately
+                setIsActive(false);
+                isActiveRef.current = false;
                 setOpen(false);
                 setActiveIdx(-1);
-                inputRef.current?.blur();
 
+                // If a suggestion is selected, pick it (pickSuggestion will blur)
                 if (open && activeIdx >= 0 && activeIdx < suggestions.length) {
                   pickSuggestion(suggestions[activeIdx]);
                   return;
                 }
+
+                // Otherwise blur + submit
+                inputRef.current?.blur();
                 if (query.trim()) {
                   onSubmit();
                 }
