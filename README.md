@@ -10,18 +10,37 @@ This project demonstrates core indexing concepts used in modern search engines.
 
 ````
 NextSearch
+NextSearch
 ├─ backend/
+│  ├─ api/
+│  │  ├─ api_add_document.cpp
+│  │  ├─ api_add_document.hpp
+│  │  ├─ api_autocomplete.cpp
+│  │  ├─ api_autocomplete.hpp
+│  │  ├─ api_engine.cpp
+│  │  ├─ api_engine.hpp
+│  │  ├─ api_http.cpp
+│  │  ├─ api_http.hpp
+│  │  ├─ api_metadata.cpp
+│  │  ├─ api_metadata.hpp
+│  │  ├─ api_segment.cpp
+│  │  ├─ api_segment.hpp
+│  │  ├─ api_server.cpp
+│  │  └─ api_types.hpp
 │  ├─ AddDocument.cpp
-│  ├─ api_server.cpp
 │  ├─ barrels.hpp
 │  ├─ CMakeLists.txt
 │  ├─ cordjson.hpp
+│  ├─ Dockerfile
 │  ├─ ForwardIndex.cpp
 │  ├─ indexio.hpp
 │  ├─ lexicon.cpp
 │  ├─ README.md
 │  ├─ segment_writer.hpp
-│  └─ textutil.hpp
+│  ├─ semantic_embedding.cpp
+│  ├─ semantic_embedding.hpp
+│  ├─ textutil.hpp
+│  └─ third_party.zip
 ├─ frontend/
 │  ├─ public/
 │  │  └─ vite.svg
