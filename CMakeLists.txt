@@ -12,13 +12,13 @@ add_executable(adddocument    AddDocument.cpp)
 
 # Build API server executable with all required sources
 add_executable(api_server
-  api/api_server.cpp
-  api/api_engine.cpp
-  api/api_autocomplete.cpp
-  api/api_segment.cpp
-  api/api_metadata.cpp
-  api/api_http.cpp
-  api/api_add_document.cpp
+  api_server.cpp
+  api_engine.cpp
+  api_autocomplete.cpp
+  api_segment.cpp
+  api_metadata.cpp
+  api_http.cpp
+  api_add_document.cpp
   semantic_embedding.cpp
 )
 
@@ -26,7 +26,7 @@ add_executable(api_server
 target_include_directories(forwardindex  PRIVATE .)
 target_include_directories(lexicon       PRIVATE .)
 target_include_directories(adddocument   PRIVATE .)
-target_include_directories(api_server    PRIVATE . api)
+target_include_directories(api_server    PRIVATE .)
 
 # Windows-only compile flags and libraries
 if (WIN32)
