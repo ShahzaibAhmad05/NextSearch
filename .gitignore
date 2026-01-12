@@ -1,4 +1,7 @@
 *.exe
 *.idx
+
 # vscode temporary files
 .vscode
+build/
+third_party/
