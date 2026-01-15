@@ -36,8 +36,9 @@ int main(int argc, char** argv) {
     });
 
     svr.set_exception_handler([](const httplib::Request& req, httplib::Response& res, std::exception_ptr ep) {
-        try { if (ep) std::rethrow_exception(ep); }
-        catch (const std::exception& e) {
+        try {
+            if (ep) std::rethrow_exception(ep);
+        } catch (const std::exception& e) {
             std::cerr << "[exception] " << req.method << " " << req.path << " : " << e.what() << "\n";
         }
         res.status = 500;
@@ -52,13 +53,11 @@ int main(int argc, char** argv) {
     svr.Options(R"(.*)", [](const httplib::Request& req, httplib::Response& res) {
         cord19::enable_cors(res);
 
-        // Echo requested headers if present (some browsers send a wider set than our default).
         if (req.has_header("Access-Control-Request-Headers")) {
             res.set_header("Access-Control-Allow-Headers",
                            req.get_header_value("Access-Control-Request-Headers"));
         }
 
-        // Echo requested method if present (defensive; we already allow GET/POST/OPTIONS).
         if (req.has_header("Access-Control-Request-Method")) {
             res.set_header("Access-Control-Allow-Methods",
                            req.get_header_value("Access-Control-Request-Method") + std::string(", OPTIONS"));
@@ -67,7 +66,9 @@ int main(int argc, char** argv) {
         res.status = 204;
     });
 
-    svr.Get("/health", [&](const httplib::Request&, httplib::Response& res) {
+    // ---- API routes only ----
+
+    svr.Get("/api/health", [&](const httplib::Request&, httplib::Response& res) {
         cord19::enable_cors(res);
         json j;
         j["ok"] = true;
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
         res.set_content(j.dump(2), "application/json");
     });
 
-    svr.Get("/search", [&](const httplib::Request& req, httplib::Response& res) {
+    svr.Get("/api/search", [&](const httplib::Request& req, httplib::Response& res) {
         cord19::enable_cors(res);
 
         using clock = std::chrono::steady_clock;
@@ -86,6 +87,7 @@ int main(int argc, char** argv) {
             res.set_content(R"({"error":"missing q param"})", "application/json");
             return;
         }
+
         std::string q = req.get_param_value("q");
         int k = 10;
         if (req.has_param("k")) k = std::stoi(req.get_param_value("k"));
@@ -94,29 +96,31 @@ int main(int argc, char** argv) {
         auto j = engine.search(q, k);
         auto search_t1 = clock::now();
 
-        double search_ms = std::chrono::duration<double, std::milli>(search_t1 - search_t0).count();
+        double search_ms =
+            std::chrono::duration<double, std::milli>(search_t1 - search_t0).count();
         j["search_time_ms"] = search_ms;
 
         auto total_t1 = clock::now();
-        double total_ms = std::chrono::duration<double, std::milli>(total_t1 - total_t0).count();
+        double total_ms =
+            std::chrono::duration<double, std::milli>(total_t1 - total_t0).count();
         j["total_time_ms"] = total_ms;
 
-        std::cerr << "[search] q=\"" << q << "\" k=" << k << " search=" << search_ms << "ms total="
-                  << total_ms << "ms\n";
+        std::cerr << "[search] q=\"" << q << "\" k=" << k
+                  << " search=" << search_ms << "ms total=" << total_ms << "ms\n";
 
         res.set_content(j.dump(2), "application/json");
     });
 
-    svr.Get("/suggest", [&](const httplib::Request& req, httplib::Response& res) {
+    svr.Get("/api/suggest", [&](const httplib::Request& req, httplib::Response& res) {
         cord19::enable_cors(res);
 
         if (!req.has_param("q")) {
             res.status = 400;
-            res.set_content(R"({\"error\":\"missing q param\"})", "application/json");
+            res.set_content(R"({"error":"missing q param"})", "application/json");
             return;
         }
-        std::string q = req.get_param_value("q");
 
+        std::string q = req.get_param_value("q");
         int k = 5;
         if (req.has_param("k")) k = std::stoi(req.get_param_value("k"));
 
@@ -124,12 +128,15 @@ int main(int argc, char** argv) {
         res.set_content(j.dump(2), "application/json");
     });
 
-    svr.Post("/add_document",
+    svr.Post("/api/add_document",
              [&](const httplib::Request& req, httplib::Response& res, const httplib::ContentReader& cr) {
+                 // If handle_add_document doesn't set CORS itself, ensure it's enabled.
+                 // (Leaving it here is harmless even if it does.)
+                 cord19::enable_cors(res);
                  cord19::handle_add_document(engine, req, res, cr);
              });
 
-    svr.Post("/reload", [&](const httplib::Request&, httplib::Response& res) {
+    svr.Post("/api/reload", [&](const httplib::Request&, httplib::Response& res) {
         cord19::enable_cors(res);
         bool ok = engine.reload();
         json j;
@@ -139,7 +146,7 @@ int main(int argc, char** argv) {
     });
 
     std::cout << "API running on http://127.0.0.1:" << port << "\n";
-    std::cout << "Try: /search?q=mycoplasma+pneumonia&k=10\n";
+    std::cout << "Try: /api/search?q=mycoplasma+pneumonia&k=10\n";
     svr.listen("0.0.0.0", port);
     return 0;
 }

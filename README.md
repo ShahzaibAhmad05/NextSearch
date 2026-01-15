@@ -110,6 +110,45 @@ NextSearch/
 └── README.md
 
 ````
+NextSearch/
+├── CMakeLists.txt                 # CMake build configuration
+├── Dockerfile                     # Docker container configuration
+├── LICENSE                        # Project license
+├── README.md                      # This file
+├── src/                          # Source files (.cpp)
+│   ├── AddDocument.cpp           # Document addition utility
+│   ├── ForwardIndex.cpp          # Forward index generation
+│   ├── lexicon.cpp               # Lexicon generation
+│   ├── api_server.cpp            # Main API server
+│   ├── api_engine.cpp            # Search engine core
+│   ├── api_autocomplete.cpp      # Autocomplete functionality
+│   ├── api_segment.cpp           # Index segment handling
+│   ├── api_metadata.cpp          # Metadata operations
+│   ├── api_http.cpp              # HTTP utilities
+│   ├── api_add_document.cpp      # Document API
+│   └── semantic_embedding.cpp    # Semantic search features
+├── include/                      # Header files (.hpp)
+│   ├── api_engine.hpp
+│   ├── api_autocomplete.hpp
+│   ├── api_segment.hpp
+│   ├── api_metadata.hpp
+│   ├── api_http.hpp
+│   ├── api_add_document.hpp
+│   ├── api_types.hpp
+│   ├── semantic_embedding.hpp
+│   ├── barrels.hpp
+│   ├── cordjson.hpp
+│   ├── indexio.hpp
+│   ├── segment_writer.hpp
+│   └── textutil.hpp
+├── third_party/                  # External dependencies
+│   ├── httplib.h                 # HTTP library
+│   └── nlohmann/
+│       └── json.hpp              # JSON library
+├── scripts/                      # Helper scripts
+│   └── slice_cord19.py          # Dataset preprocessing
+└── build/                        # Build artifacts (generated)
+````
 
 
 ## Installation

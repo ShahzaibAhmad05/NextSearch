@@ -1,7 +1,37 @@
+# Build artifacts
+build/
 *.exe
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# Index files
 *.idx
 
-# vscode temporary files
-.vscode
-build/
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.gitree
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Dependency directories
 third_party/
+
+# Logs and temporary files
+*.log
+*.tmp
+a.exe
