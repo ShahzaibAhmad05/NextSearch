@@ -22,11 +22,13 @@ struct AzureOpenAIConfig {
 // Generate an AI overview of search results using Azure OpenAI with caching
 // Takes the search results JSON and returns an AI-generated overview
 // Uses Engine's AI cache to save on API costs (24hr expiry, LRU eviction)
+// is_authorized: if true, counter won't decrement; if false, counter decrements
 json generate_ai_overview(const AzureOpenAIConfig& config, 
                           const std::string& query,
                           int k,
                           const json& search_results,
                           Engine* engine,
-                          StatsTracker* stats = nullptr);
+                          StatsTracker* stats = nullptr,
+                          bool is_authorized = false);
 
 } // namespace cord19

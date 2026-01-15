@@ -353,10 +353,8 @@ int main(int argc, char** argv) {
     svr.Get("/api/ai_overview", [&](const httplib::Request& req, httplib::Response& res) {
         cord19::enable_cors(res);
         
-        // Require admin authentication
-        if (admin_enabled && !cord19::require_admin_auth(req, res, jwt_secret)) {
-            return; // Error response already set by require_admin_auth
-        }
+        // Check authorization status (don't block request)
+        bool authorized = admin_enabled && cord19::is_authorized(req, jwt_secret);
         
         // Check if Azure OpenAI is configured
         if (!azure_enabled) {
@@ -425,7 +423,8 @@ int main(int argc, char** argv) {
         }
         
         // Generate AI overview using Azure OpenAI with caching
-        auto ai_response = cord19::generate_ai_overview(azure_config, query, k, search_results, &engine, &stats_tracker);
+        // Authorized requests don't decrement counter, unauthorized requests do
+        auto ai_response = cord19::generate_ai_overview(azure_config, query, k, search_results, &engine, &stats_tracker, authorized);
         
         // Prepare minimal response (no search results, just AI overview)
         json response;
@@ -451,10 +450,8 @@ int main(int argc, char** argv) {
     svr.Get("/api/ai_summary", [&](const httplib::Request& req, httplib::Response& res) {
         cord19::enable_cors(res);
         
-        // Require admin authentication
-        if (admin_enabled && !cord19::require_admin_auth(req, res, jwt_secret)) {
-            return; // Error response already set by require_admin_auth
-        }
+        // Check authorization status (don't block request)
+        bool authorized = admin_enabled && cord19::is_authorized(req, jwt_secret);
         
         // Check if Azure OpenAI is configured
         if (!azure_enabled) {
@@ -479,7 +476,8 @@ int main(int argc, char** argv) {
         std::cerr << "[ai_summary] Processing cord_uid: \"" << cord_uid << "\"\n";
         
         // Generate AI summary using Azure OpenAI with caching
-        auto ai_response = cord19::generate_ai_summary(azure_config, cord_uid, &engine, &stats_tracker);
+        // Authorized requests don't decrement counter, unauthorized requests do
+        auto ai_response = cord19::generate_ai_summary(azure_config, cord_uid, &engine, &stats_tracker, authorized);
         
         // Return the response (contains only cord_uid and summary)
         if (ai_response.contains("success") && ai_response["success"] == true) {

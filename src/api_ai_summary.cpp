@@ -134,7 +134,8 @@ static std::string make_https_post_summary(const std::string& url, const std::st
 json generate_ai_summary(const AzureOpenAIConfig& config,
                          const std::string& cord_uid,
                          Engine* engine,
-                         StatsTracker* stats) {
+                         StatsTracker* stats,
+                         bool is_authorized) {
     json response_json;
     
     // Track AI summary call
@@ -214,9 +215,12 @@ json generate_ai_summary(const AzureOpenAIConfig& config,
         
         std::cerr << "[azure_openai] Calling Azure OpenAI for summary at " << config.endpoint << path << "\n";
         
-        // Decrement AI API calls remaining (actual API call being made)
-        if (stats) {
+        // Decrement AI API calls remaining only for unauthorized requests
+        if (stats && !is_authorized) {
             stats->decrement_ai_api_calls();
+            std::cerr << "[azure_openai] Unauthorized request - decrementing counter\n";
+        } else if (is_authorized) {
+            std::cerr << "[azure_openai] Authorized request - counter not decremented\n";
         }
         
         // Make the HTTPS POST request using WinHTTP

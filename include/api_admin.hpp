@@ -231,6 +231,23 @@ inline std::string extract_bearer_token(const std::string& auth_header) {
     return auth_header.substr(bearer_prefix.size());
 }
 
+// Check if request has valid admin authentication (does not block request)
+inline bool is_authorized(const httplib::Request& req, const std::string& jwt_secret) {
+    if (!req.has_header("Authorization")) {
+        return false;
+    }
+    
+    std::string auth_header = req.get_header_value("Authorization");
+    std::string token = extract_bearer_token(auth_header);
+    
+    if (token.empty()) {
+        return false;
+    }
+    
+    auto validation_result = validate_jwt_token(token, jwt_secret);
+    return validation_result.valid;
+}
+
 // Authentication middleware for HTTP requests
 inline bool require_admin_auth(const httplib::Request& req, httplib::Response& res, const std::string& jwt_secret) {
     // Get Authorization header
