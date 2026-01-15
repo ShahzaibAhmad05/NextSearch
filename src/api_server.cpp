@@ -6,6 +6,7 @@
 
 #include "api_add_document.hpp"
 #include "api_ai_overview.hpp"
+#include "api_ai_summary.hpp"
 #include "api_engine.hpp"
 #include "api_http.hpp"
 #include "env_loader.hpp"
@@ -281,10 +282,60 @@ int main(int argc, char** argv) {
         }
     });
 
+    svr.Get("/api/ai_summary", [&](const httplib::Request& req, httplib::Response& res) {
+        cord19::enable_cors(res);
+        
+        // Check if Azure OpenAI is configured
+        if (!azure_enabled) {
+            res.status = 503;
+            json err;
+            err["error"] = "Azure OpenAI not configured. Please set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, and AZURE_OPENAI_MODEL in .env file";
+            res.set_content(err.dump(2), "application/json");
+            return;
+        }
+        
+        // Extract cord_uid parameter from URL
+        if (!req.has_param("cord_uid")) {
+            res.status = 400;
+            json err;
+            err["error"] = "missing cord_uid param";
+            res.set_content(err.dump(2), "application/json");
+            return;
+        }
+        
+        std::string cord_uid = req.get_param_value("cord_uid");
+        
+        std::cerr << "[ai_summary] Processing cord_uid: \"" << cord_uid << "\"\n";
+        
+        // Generate AI summary using Azure OpenAI with caching
+        auto ai_response = cord19::generate_ai_summary(azure_config, cord_uid, &engine);
+        
+        // Return the response (contains only cord_uid and summary)
+        if (ai_response.contains("success") && ai_response["success"] == true) {
+            json response;
+            response["cord_uid"] = ai_response["cord_uid"];
+            response["summary"] = ai_response["summary"];
+            if (ai_response.contains("cached")) {
+                response["cached"] = ai_response["cached"];
+            }
+            res.set_content(response.dump(2), "application/json");
+        } else {
+            res.status = ai_response.contains("cord_uid") ? 404 : 500;
+            json error_response;
+            error_response["cord_uid"] = cord_uid;
+            error_response["error"] = ai_response.contains("error") ? ai_response["error"] : "Unknown error";
+            if (ai_response.contains("details")) {
+                error_response["details"] = ai_response["details"];
+            }
+            res.set_content(error_response.dump(2), "application/json");
+        }
+    });
+
     std::cout << "API running on http://127.0.0.1:" << port << "\n";
     std::cout << "Try: /api/search?q=mycoplasma+pneumonia&k=10\n";
     if (azure_enabled) {
         std::cout << "Try: /api/ai_overview?q=covid&k=10\n";
+        std::cout << "Try: /api/ai_summary?cord_uid=<some_uid>\n";
     }
     svr.listen("0.0.0.0", port);
     return 0;

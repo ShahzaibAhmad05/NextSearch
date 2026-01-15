@@ -30,11 +30,13 @@ struct LexEntry {
     uint32_t barrelId = 0; // used only when barrels enabled
 };
 
-// store url + publish_time + authors per cord_uid
+// store url + publish_time + authors + title + abstract per cord_uid
 struct MetaInfo {
     std::string url;
     std::string publish_time; // "YYYY-MM-DD" string
     std::string author;       // display: "Smith et al."
+    std::string title;
+    std::string abstract;
 };
 
 struct Segment {

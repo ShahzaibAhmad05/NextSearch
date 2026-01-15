@@ -126,7 +126,7 @@ void load_metadata_uid_meta(const fs::path& metadata_csv,
 
     // Parse column names
     auto cols = csv_row(header);
-    int uid_i = -1, url_i = -1, pub_i = -1, auth_i = -1;
+    int uid_i = -1, url_i = -1, pub_i = -1, auth_i = -1, title_i = -1, abstract_i = -1;
 
     // Identify required column indexes
     for (int i = 0; i < (int)cols.size(); i++) {
@@ -134,6 +134,8 @@ void load_metadata_uid_meta(const fs::path& metadata_csv,
         if (cols[i] == "url") url_i = i;
         if (cols[i] == "publish_time") pub_i = i;
         if (cols[i] == "authors") auth_i = i;
+        if (cols[i] == "title") title_i = i;
+        if (cols[i] == "abstract") abstract_i = i;
     }
 
     // Validate required columns
@@ -171,6 +173,14 @@ void load_metadata_uid_meta(const fs::path& metadata_csv,
         // Convert authors string to "Surname et al."
         if (entry.author.empty() && !r[auth_i].empty())
             entry.author = first_author_et_al(r[auth_i]);
+
+        // Add title if available
+        if (title_i >= 0 && entry.title.empty() && (int)r.size() > title_i && !r[title_i].empty())
+            entry.title = r[title_i];
+
+        // Add abstract if available
+        if (abstract_i >= 0 && entry.abstract.empty() && (int)r.size() > abstract_i && !r[abstract_i].empty())
+            entry.abstract = r[abstract_i];
 
         loaded++;
     }

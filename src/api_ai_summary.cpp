@@ -1,3 +1,4 @@
+#include "api_ai_summary.hpp"
 #include "api_ai_overview.hpp"
 #include "api_engine.hpp"
 #include <iostream>
@@ -9,70 +10,37 @@
 
 namespace cord19 {
 
-// Helper function to construct the system prompt for AI overview generation
-static std::string build_system_prompt() {
-    return R"(You are an AI assistant that generates short, informative overviews of search results in proper markdown format with headings and newline chars.
+// Helper function to construct the system prompt for AI summary generation
+static std::string build_summary_system_prompt() {
+    return R"(You are an AI assistant that generates short, informative summaries of scientific abstracts in proper markdown format with headings and newline chars.
 
-    Your task is to analyze the provided search results and create a comprehensive summary that:
-    1. Answers the user's query directly
-    2. Synthesizes information from multiple sources
-    3. Highlights key findings and relevant details
-    4. Maintains accuracy and avoids speculation
-    5. Cites specific documents when appropriate
+    Your task is to analyze the provided abstract and create a clear summary that:
+    1. Captures the main findings and key points
+    2. Highlights the research objective and methodology if present
+    3. Summarizes conclusions and implications
+    4. Maintains scientific accuracy without speculation
+    5. Uses clear, accessible language
 
-    Keep your overview clear, factual, and helpful. Format it in proper markdown with appropriate headings wherever needed.)";
+    Keep your summary concise, factual, and helpful. Format it in proper markdown with appropriate headings wherever needed.)";
 }
 
-// Helper function to build the user prompt with search results
-static std::string build_user_prompt(const std::string& query, const json& search_results) {
+// Helper function to build the user prompt with abstract
+static std::string build_summary_user_prompt(const std::string& title, const std::string& abstract) {
     std::ostringstream oss;
-    oss << "User Query: " << query << "\n\n";
-    oss << "Search Results:\n\n";
     
-    // Extract and format the search results
-    if (search_results.contains("results") && search_results["results"].is_array()) {
-        const auto& results = search_results["results"];
-        int rank = 1;
-        
-        for (const auto& result : results) {
-            oss << "Document " << rank << ":\n";
-            
-            if (result.contains("title")) {
-                oss << "Title: " << result["title"].get<std::string>() << "\n";
-            }
-            
-            if (result.contains("cord_uid")) {
-                oss << "ID: " << result["cord_uid"].get<std::string>() << "\n";
-            }
-            
-            if (result.contains("bm25_score")) {
-                oss << "Relevance Score: " << result["bm25_score"].get<double>() << "\n";
-            }
-            
-            if (result.contains("url")) {
-                oss << "URL: " << result["url"].get<std::string>() << "\n";
-            }
-            
-            if (result.contains("author")) {
-                oss << "Author: " << result["author"].get<std::string>() << "\n";
-            }
-            
-            if (result.contains("publish_time")) {
-                oss << "Published: " << result["publish_time"].get<std::string>() << "\n";
-            }
-            
-            oss << "\n";
-            rank++;
-        }
+    if (!title.empty()) {
+        oss << "Document Title: " << title << "\n\n";
     }
     
-    oss << "Please provide a comprehensive AI overview based on these search results.";
+    oss << "Abstract:\n" << abstract << "\n\n";
+    oss << "Please provide a concise summary of this abstract.";
+    
     return oss.str();
 }
 
 // Helper function to make HTTPS POST request using WinHTTP
-static std::string make_https_post(const std::string& url, const std::string& path, 
-                                   const std::string& api_key, const std::string& body) {
+static std::string make_https_post_summary(const std::string& url, const std::string& path, 
+                                           const std::string& api_key, const std::string& body) {
     HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
     std::string response;
     
@@ -162,32 +130,50 @@ static std::string make_https_post(const std::string& url, const std::string& pa
     return response;
 }
 
-json generate_ai_overview(const AzureOpenAIConfig& config,
-                          const std::string& query,
-                          int k,
-                          const json& search_results,
-                          Engine* engine) {
+json generate_ai_summary(const AzureOpenAIConfig& config,
+                         const std::string& cord_uid,
+                         Engine* engine) {
     json response_json;
     
     // Check cache first if engine is provided
     if (engine) {
-        std::string cache_key = engine->make_cache_key(query, k);
+        std::string cache_key = "summary|" + cord_uid;
         
         std::lock_guard<std::mutex> lock(engine->mtx);
         json cached = engine->get_ai_from_cache(cache_key);
         
         if (!cached.is_null() && cached.contains("from_cache")) {
-            std::cerr << "[ai_overview] Cache HIT for query: \"" << query << "\" k=" << k << "\n";
+            std::cerr << "[ai_summary] Cache HIT for cord_uid: \"" << cord_uid << "\"\n";
             // Remove internal flag and add user-visible flag
             cached.erase("from_cache");
             cached["cached"] = true;
             return cached;
         }
         
-        std::cerr << "[ai_overview] Cache MISS for query: \"" << query << "\" k=" << k << "\n";
+        std::cerr << "[ai_summary] Cache MISS for cord_uid: \"" << cord_uid << "\"\n";
     }
     
     try {
+        // Look up metadata for the cord_uid
+        if (!engine || engine->uid_to_meta.find(cord_uid) == engine->uid_to_meta.end()) {
+            response_json["error"] = "cord_uid not found in metadata";
+            response_json["success"] = false;
+            response_json["cord_uid"] = cord_uid;
+            std::cerr << "[ai_summary] cord_uid not found: " << cord_uid << "\n";
+            return response_json;
+        }
+        
+        const auto& meta = engine->uid_to_meta.at(cord_uid);
+        
+        // Check if abstract exists
+        if (meta.abstract.empty()) {
+            response_json["error"] = "No abstract available for this document";
+            response_json["success"] = false;
+            response_json["cord_uid"] = cord_uid;
+            std::cerr << "[ai_summary] No abstract for cord_uid: " << cord_uid << "\n";
+            return response_json;
+        }
+        
         // Build the API path
         std::string path = "/openai/deployments/" + config.model + 
                           "/chat/completions?api-version=" + config.api_version;
@@ -199,28 +185,29 @@ json generate_ai_overview(const AzureOpenAIConfig& config,
         // Add system message
         json system_msg;
         system_msg["role"] = "system";
-        system_msg["content"] = build_system_prompt();
+        system_msg["content"] = build_summary_system_prompt();
         request_body["messages"].push_back(system_msg);
         
-        // Add user message with query and results
+        // Add user message with title and abstract
         json user_msg;
         user_msg["role"] = "user";
-        user_msg["content"] = build_user_prompt(query, search_results);
+        user_msg["content"] = build_summary_user_prompt(meta.title, meta.abstract);
         request_body["messages"].push_back(user_msg);
         
         // Set parameters
-        request_body["max_completion_tokens"] = 1000;
+        request_body["max_completion_tokens"] = 500;
         
         std::string body_str = request_body.dump();
         
-        std::cerr << "[azure_openai] Calling Azure OpenAI at " << config.endpoint << path << "\n";
+        std::cerr << "[azure_openai] Calling Azure OpenAI for summary at " << config.endpoint << path << "\n";
         
         // Make the HTTPS POST request using WinHTTP
-        std::string response_body = make_https_post(config.endpoint, path, config.api_key, body_str);
+        std::string response_body = make_https_post_summary(config.endpoint, path, config.api_key, body_str);
         
         if (response_body.empty()) {
             response_json["error"] = "Failed to connect to Azure OpenAI";
             response_json["success"] = false;
+            response_json["cord_uid"] = cord_uid;
             std::cerr << "[azure_openai] Connection failed\n";
             return response_json;
         }
@@ -233,11 +220,12 @@ json generate_ai_overview(const AzureOpenAIConfig& config,
             response_json["error"] = "Azure OpenAI API error";
             response_json["details"] = api_response["error"];
             response_json["success"] = false;
+            response_json["cord_uid"] = cord_uid;
             std::cerr << "[azure_openai] API error: " << api_response.dump() << "\n";
             return response_json;
         }
         
-        // Extract the AI overview from the response
+        // Extract the AI summary from the response
         if (api_response.contains("choices") && 
             api_response["choices"].is_array() && 
             !api_response["choices"].empty()) {
@@ -247,36 +235,34 @@ json generate_ai_overview(const AzureOpenAIConfig& config,
                 choice["message"].contains("content")) {
                 
                 response_json["success"] = true;
-                response_json["overview"] = choice["message"]["content"];
-                response_json["model"] = config.model;
+                response_json["cord_uid"] = cord_uid;
+                response_json["summary"] = choice["message"]["content"];
                 response_json["cached"] = false;
                 
-                // Include token usage if available
-                if (api_response.contains("usage")) {
-                    response_json["usage"] = api_response["usage"];
-                }
-                
-                std::cerr << "[azure_openai] Successfully generated AI overview\n";
+                std::cerr << "[azure_openai] Successfully generated AI summary\n";
                 
                 // Cache the successful response if engine is provided
                 if (engine) {
-                    std::string cache_key = engine->make_cache_key(query, k);
+                    std::string cache_key = "summary|" + cord_uid;
                     std::lock_guard<std::mutex> lock(engine->mtx);
                     engine->put_ai_in_cache(cache_key, response_json);
-                    std::cerr << "[ai_overview] Cached AI overview for query: \"" << query << "\" k=" << k << "\n";
+                    std::cerr << "[ai_summary] Cached AI summary for cord_uid: \"" << cord_uid << "\"\n";
                 }
             } else {
                 response_json["error"] = "Unexpected response structure";
                 response_json["success"] = false;
+                response_json["cord_uid"] = cord_uid;
             }
         } else {
             response_json["error"] = "No choices in response";
             response_json["success"] = false;
+            response_json["cord_uid"] = cord_uid;
         }
         
     } catch (const std::exception& e) {
         response_json["error"] = std::string("Exception: ") + e.what();
         response_json["success"] = false;
+        response_json["cord_uid"] = cord_uid;
         std::cerr << "[azure_openai] Exception: " << e.what() << "\n";
     }
     
