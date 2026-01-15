@@ -23,6 +23,7 @@ add_executable(api_server
   ${SRC_DIR}/api_metadata.cpp
   ${SRC_DIR}/api_http.cpp
   ${SRC_DIR}/api_add_document.cpp
+  ${SRC_DIR}/api_ai_overview.cpp
   ${SRC_DIR}/semantic_embedding.cpp
 )
 

@@ -35,3 +35,6 @@ third_party/
 *.log
 *.tmp
 a.exe
+
+# Secrets
+.env

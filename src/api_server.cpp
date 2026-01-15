@@ -4,8 +4,10 @@
 #include <string>
 
 #include "api_add_document.hpp"
+#include "api_ai_overview.hpp"
 #include "api_engine.hpp"
 #include "api_http.hpp"
+#include "env_loader.hpp"
 #include "third_party/httplib.h"
 
 using cord19::Engine;
@@ -27,6 +29,24 @@ int main(int argc, char** argv) {
     if (!engine.reload()) {
         std::cerr << "Failed to load index segments from: " << engine.index_dir << "\n";
         return 1;
+    }
+
+    // Load Azure OpenAI configuration from .env file
+    auto env_vars = cord19::load_env_file(".env");
+    cord19::AzureOpenAIConfig azure_config;
+    azure_config.endpoint = env_vars["AZURE_OPENAI_ENDPOINT"];
+    azure_config.api_key = env_vars["AZURE_OPENAI_API_KEY"];
+    azure_config.model = env_vars["AZURE_OPENAI_MODEL"];
+    
+    // Validate Azure configuration
+    bool azure_enabled = !azure_config.endpoint.empty() && 
+                        !azure_config.api_key.empty() && 
+                        !azure_config.model.empty();
+    
+    if (azure_enabled) {
+        std::cout << "[azure] Azure OpenAI enabled with model: " << azure_config.model << "\n";
+    } else {
+        std::cout << "[azure] Azure OpenAI not configured (AI overview endpoint will return error)\n";
     }
 
     httplib::Server svr;
@@ -167,8 +187,72 @@ int main(int argc, char** argv) {
         res.set_content(j.dump(2), "application/json");
     });
 
+    svr.Get("/api/ai_overview", [&](const httplib::Request& req, httplib::Response& res) {
+        cord19::enable_cors(res);
+        
+        // Check if Azure OpenAI is configured
+        if (!azure_enabled) {
+            res.status = 503;
+            json err;
+            err["error"] = "Azure OpenAI not configured. Please set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, and AZURE_OPENAI_MODEL in .env file";
+            res.set_content(err.dump(2), "application/json");
+            return;
+        }
+        
+        // Extract query parameter from URL
+        if (!req.has_param("q")) {
+            res.status = 400;
+            json err;
+            err["error"] = "missing q param";
+            res.set_content(err.dump(2), "application/json");
+            return;
+        }
+        
+        std::string query = req.get_param_value("q");
+        
+        // Get k parameter (default to 10)
+        int k = 10;
+        if (req.has_param("k")) {
+            k = std::stoi(req.get_param_value("k"));
+        }
+        
+        std::cerr << "[ai_overview] Processing query: \"" << query << "\" k=" << k << "\n";
+        
+        // Get search results from cache or perform search
+        auto search_results = engine.search(query, k);
+        
+        // Check if we got valid results
+        if (!search_results.contains("results") || search_results["results"].empty()) {
+            res.status = 404;
+            json err;
+            err["error"] = "No search results found for the query";
+            err["query"] = query;
+            res.set_content(err.dump(2), "application/json");
+            return;
+        }
+        
+        // Generate AI overview using Azure OpenAI
+        auto ai_response = cord19::generate_ai_overview(azure_config, query, search_results);
+        
+        // Prepare final response
+        json response;
+        response["query"] = query;
+        response["search_results"] = search_results;
+        response["ai_overview"] = ai_response;
+        
+        if (ai_response.contains("success") && ai_response["success"] == true) {
+            res.set_content(response.dump(2), "application/json");
+        } else {
+            res.status = 500;
+            res.set_content(response.dump(2), "application/json");
+        }
+    });
+
     std::cout << "API running on http://127.0.0.1:" << port << "\n";
     std::cout << "Try: /api/search?q=mycoplasma+pneumonia&k=10\n";
+    if (azure_enabled) {
+        std::cout << "Try: /api/ai_overview?q=covid&k=10\n";
+    }
     svr.listen("0.0.0.0", port);
     return 0;
 }
