@@ -71,13 +71,12 @@ int main(int argc, char** argv) {
     // Initialize stats tracker
     cord19::StatsTracker stats_tracker;
     
-    // Load AI API limit from .env (default: 10,000)
-    if (!env_vars["AI_API_CALLS_LIMIT"].empty()) {
+    // Only set AI API limit from .env on first initialization (if stats.json doesn't exist)
+    // This prevents overwriting manually edited stats.json values
+    if (!std::filesystem::exists("stats.json") && !env_vars["AI_API_CALLS_LIMIT"].empty()) {
         int64_t limit = std::stoll(env_vars["AI_API_CALLS_LIMIT"]);
         stats_tracker.set_ai_api_calls_limit(limit);
-        std::cout << "[stats] AI API calls limit set to: " << limit << "\n";
-    } else {
-        std::cout << "[stats] AI API calls limit: 10,000 (default)\n";
+        std::cout << "[stats] AI API calls limit set to: " << limit << " (from .env)\n";
     }
     
     // Load admin configuration
