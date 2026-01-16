@@ -92,40 +92,52 @@ public:
         save_to_file();
     }
     
-    // Generate stats JSON
-    json get_stats_json(const FeedbackManager& feedback_manager) const {
+    // Generate stats JSON - reads directly from file to get latest values
+    json get_stats_json(const FeedbackManager& feedback_manager) {
+        std::lock_guard<std::mutex> lock(file_mutex_);
+        
         json stats;
         
-        // Search stats
-        stats["total_searches"] = total_searches_.load();
-        stats["search_cache_hits"] = search_cache_hits_.load();
+        // Read stats directly from file to get any manual updates
+        if (fs::exists(stats_file_)) {
+            try {
+                std::ifstream ifs(stats_file_);
+                if (ifs.is_open()) {
+                    ifs >> stats;
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[stats] Error reading from file: " << e.what() << "\n";
+                // Fall back to in-memory values if file read fails
+                stats = json::object();
+            }
+        }
         
-        // Calculate cache hit rate for searches
-        int64_t total = total_searches_.load();
-        int64_t hits = search_cache_hits_.load();
+        // If file doesn't exist or is empty, use in-memory values
+        if (stats.empty()) {
+            stats["total_searches"] = total_searches_.load();
+            stats["search_cache_hits"] = search_cache_hits_.load();
+            stats["ai_overview_calls"] = ai_overview_calls_.load();
+            stats["ai_overview_cache_hits"] = ai_overview_cache_hits_.load();
+            stats["ai_summary_calls"] = ai_summary_calls_.load();
+            stats["ai_summary_cache_hits"] = ai_summary_cache_hits_.load();
+            stats["ai_api_calls_remaining"] = ai_api_calls_remaining_.load();
+            stats["ai_api_calls_used"] = ai_api_calls_used_.load();
+        }
+        
+        // Calculate cache hit rates from the loaded stats
+        int64_t total = stats.value("total_searches", 0);
+        int64_t hits = stats.value("search_cache_hits", 0);
         stats["search_cache_hit_rate"] = (total > 0) ? (static_cast<double>(hits) / total) : 0.0;
         
-        // AI Overview stats
-        stats["ai_overview_calls"] = ai_overview_calls_.load();
-        stats["ai_overview_cache_hits"] = ai_overview_cache_hits_.load();
-        
-        int64_t ai_overview_total = ai_overview_calls_.load();
-        int64_t ai_overview_hits = ai_overview_cache_hits_.load();
+        int64_t ai_overview_total = stats.value("ai_overview_calls", 0);
+        int64_t ai_overview_hits = stats.value("ai_overview_cache_hits", 0);
         stats["ai_overview_cache_hit_rate"] = (ai_overview_total > 0) ? 
             (static_cast<double>(ai_overview_hits) / ai_overview_total) : 0.0;
         
-        // AI Summary stats
-        stats["ai_summary_calls"] = ai_summary_calls_.load();
-        stats["ai_summary_cache_hits"] = ai_summary_cache_hits_.load();
-        
-        int64_t ai_summary_total = ai_summary_calls_.load();
-        int64_t ai_summary_hits = ai_summary_cache_hits_.load();
+        int64_t ai_summary_total = stats.value("ai_summary_calls", 0);
+        int64_t ai_summary_hits = stats.value("ai_summary_cache_hits", 0);
         stats["ai_summary_cache_hit_rate"] = (ai_summary_total > 0) ? 
             (static_cast<double>(ai_summary_hits) / ai_summary_total) : 0.0;
-        
-        // AI API calls remaining and used
-        stats["ai_api_calls_remaining"] = ai_api_calls_remaining_.load();
-        stats["ai_api_calls_used"] = ai_api_calls_used_.load();
         
         // Last 10 feedback reviews
         json all_feedback = feedback_manager.get_all_feedback();
