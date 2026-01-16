@@ -23,8 +23,10 @@ static std::string build_system_prompt() {
     5. Cites specific documents when appropriate
 
     TO SUCCEED, FOLLOW THESE RULES:
-    - 
-    - Format it in proper markdown with appropriate headings wherever needed.)";
+    - The first paragraph should directly answer the user's query.
+    - Add a horizontal rule (---) after the first paragraph.
+    - Format it in proper markdown,
+    - Use appropriate markdown headings wherever needed.)";
 }
 
 // Helper function to build the user prompt with search results
