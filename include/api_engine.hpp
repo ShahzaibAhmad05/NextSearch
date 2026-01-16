@@ -43,19 +43,19 @@ struct Engine {
     static constexpr size_t MAX_CACHE_SIZE = 2600;
     static constexpr std::chrono::hours CACHE_EXPIRY_DURATION{24};
 
-    // AI overview cache: stores up to 500 AI overviews with LRU eviction and 24hr expiry
+    // AI overview cache: stores up to 500 AI overviews with LRU eviction and 7-day expiry
     // Key format: "query|k" (e.g., "covid|10") - same as search cache
     std::unordered_map<std::string, CacheEntry> ai_overview_cache;
     std::list<std::string> ai_overview_lru_list; // Most recently used at front
     static constexpr size_t MAX_AI_OVERVIEW_CACHE_SIZE = 500;
-    static constexpr std::chrono::hours AI_OVERVIEW_CACHE_EXPIRY_DURATION{24};
+    static constexpr std::chrono::hours AI_OVERVIEW_CACHE_EXPIRY_DURATION{168};
 
-    // AI summary cache: stores up to 1000 AI summaries with LRU eviction and 24hr expiry
+    // AI summary cache: stores up to 1000 AI summaries with LRU eviction and 7-day expiry
     // Key format: "summary|cord_uid" (e.g., "summary|abc123")
     std::unordered_map<std::string, CacheEntry> ai_summary_cache;
     std::list<std::string> ai_summary_lru_list; // Most recently used at front
     static constexpr size_t MAX_AI_SUMMARY_CACHE_SIZE = 1000;
-    static constexpr std::chrono::hours AI_SUMMARY_CACHE_EXPIRY_DURATION{24};
+    static constexpr std::chrono::hours AI_SUMMARY_CACHE_EXPIRY_DURATION{168};
 
     // Cache persistence counters (save to disk every N updates)
     size_t cache_updates_since_save = 0;
